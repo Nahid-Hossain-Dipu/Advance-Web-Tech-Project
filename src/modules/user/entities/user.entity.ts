@@ -1,4 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Role } from "@/common/enums/role.enum";
 
 @Entity({name:"users"})
 export class User{
@@ -13,6 +14,10 @@ export class User{
 
     @Column()
     password!: string;
+
+    // role of the user: admin, driver or passenger
+    @Column({ type: "varchar", default: Role.PASSENGER })
+    role!: Role;
 
     @Column()
     created_at?: Date;

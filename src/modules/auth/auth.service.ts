@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { UserService } from "@/modules/user/user.service";
 import { JwtService } from "@nestjs/jwt";
 import { AuthDto } from "./dto/auth.dto";
+import { RegisterDto } from "./dto/register.dto";
 import { User } from "../user/entities/user.entity";
 import { appConfig } from "@/src/config";
+import { verifyPassword } from "@/common/helpers/password.helper";
 
 
 
@@ -14,6 +16,10 @@ export class AuthService {
     private jwt: JwtService,
   ) {}
 
+
+  async register(dto: RegisterDto) {
+    return await this.userService.createUser(dto);
+  }
 
   async signIn(dto: AuthDto) {
     const user = await this.checkUserByEmail(dto.email);
@@ -74,9 +80,10 @@ async checkUserByEmail(email:string){
 }
 
 async validateUser(user:User, password:string){
-  const passwordMatch= user.password===password;
+  // compare the plain password with the saved hash
+  const passwordMatch = await verifyPassword(user.password, password);
   if(!passwordMatch){
-    throw new NotFoundException("Invalid password");
+    throw new UnauthorizedException("Invalid password");
   }
   return true;
 }
