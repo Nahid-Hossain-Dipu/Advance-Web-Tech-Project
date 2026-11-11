@@ -46,6 +46,7 @@ async signTokens(user: User): Promise<{
     user_id: user.id,
     name: user?.name,
     email: user.email,
+    roles: [user.role], // role goes inside the token
   }
   
   const refreshPayload = {
