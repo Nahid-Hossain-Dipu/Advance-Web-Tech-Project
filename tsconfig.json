@@ -12,7 +12,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
-    "incremental": true,
+    "incremental": false,
     "skipLibCheck": true,
     "typeRoots": ["./src/@types"],
     "resolveJsonModule": true,
