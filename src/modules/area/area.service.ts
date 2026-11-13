@@ -11,7 +11,7 @@ export class AreaService {
         private readonly areaRepository: Repository<Area>,
     ) {}
 
-    // list areas with pagination: ?limit=10&offset=0
+    
     async getAreas(options: FindManyOptions<Area> = {}) {
         try {
             const take = options.take && options.take > 0 ? Math.min(options.take, 100) : 10;
