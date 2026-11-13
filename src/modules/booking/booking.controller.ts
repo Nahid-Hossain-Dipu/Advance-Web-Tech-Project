@@ -1,6 +1,17 @@
-import {Controller,Post,Body,UseGuards,} from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Patch,
+  Param,
+} from '@nestjs/common';
 
-import {ApiTags,ApiBearerAuth,ApiOperation,} from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+} from '@nestjs/swagger';
 
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -19,9 +30,11 @@ import { AuthUser } from '../../common/interfaces/auth-user.interface';
 @Controller('bookings')
 @UseGuards(JwtGuard, RolesGuard)
 export class BookingController {
+  constructor(
+    private readonly bookingService: BookingService,
+  ) {}
 
-  constructor(private readonly bookingService: BookingService) {}
-
+  // Passenger creates booking
   @Post()
   @Roles(Role.PASSENGER)
   @ApiOperation({
@@ -31,11 +44,40 @@ export class BookingController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateBookingDto,
   ) {
+    return this.bookingService.createBooking(user.id, dto);
+  }
 
-    return this.bookingService.createBooking(
+  // Driver accepts booking
+  @Patch(':id/accept')
+  @Roles(Role.DRIVER)
+  @ApiOperation({
+    summary: 'Accept a booking request',
+  })
+  acceptBooking(
+    @Param('id') bookingId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.bookingService.updateBookingStatus(
+      bookingId,
       user.id,
-      dto,
+      'accept',
     );
   }
 
+  // Driver rejects booking
+  @Patch(':id/reject')
+  @Roles(Role.DRIVER)
+  @ApiOperation({
+    summary: 'Reject a booking request',
+  })
+  rejectBooking(
+    @Param('id') bookingId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.bookingService.updateBookingStatus(
+      bookingId,
+      user.id,
+      'reject',
+    );
+  }
 }
