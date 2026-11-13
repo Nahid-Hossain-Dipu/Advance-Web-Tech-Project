@@ -18,7 +18,7 @@ export class Booking {
   id!: string;
 
   // Passenger who requested the booking
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { nullable: false })
   @JoinColumn({ name: 'passenger_id' })
   passenger!: User;
 
