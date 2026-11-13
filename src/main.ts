@@ -1,4 +1,5 @@
 import { NestFactory } from "@nestjs/core";
+import { ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "@/src/app.module";
@@ -12,6 +13,9 @@ dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  
+  // check every request body with its DTO rules (wrong data gives 400)
+  app.useGlobalPipes(new ValidationPipe());
 
   app.useStaticAssets(join(process.cwd(), "uploads"), {
     prefix: "/uploads/",
