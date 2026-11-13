@@ -1,7 +1,8 @@
-import {Controller,Get,Post,Body,Param,} from "@nestjs/common";
+import {Controller,Get,Post,Body,Param} from "@nestjs/common";
 import { RatingService } from "./rating.service";
 import { CreateRatingDto } from "./dto/create-rating.dto";
-
+import { UseGuards, Req } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
 @Controller("ratings")
 export class RatingController {
 
@@ -10,13 +11,16 @@ export class RatingController {
     ) {}
 
 
-    @Post()
-    async createRating(@Body() dto: CreateRatingDto) {
-    const raterId = "temporary-user-id";
+      @Post()
+      @UseGuards(AuthGuard("jwt"))
+      async createRating(
+    @Req() req: { user: { id: string } },
+    @Body() dto: CreateRatingDto,
+) {
+    const raterId = req.user.id;
 
     return await this.ratingService.createRating(raterId, dto);
-    }
-
+}
     
     @Get()
     async getAllRatings() {
