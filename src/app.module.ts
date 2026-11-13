@@ -9,6 +9,7 @@ import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { RatingModule } from "./modules/rating/rating.module";
 
+
 @Module({
   imports: [
     PostgresDatabaseProviderModule,
@@ -25,7 +26,8 @@ import { RatingModule } from "./modules/rating/rating.module";
     }),
     AuthModule,
     UserModule,
-    RatingModule
+    RatingModule,
+  
   ],
   controllers: [AppController],
   providers: [AppService],
