@@ -7,6 +7,7 @@ import global_config from "@/config/global_config";
 import { BullModule } from "@nestjs/bull";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { RatingModule } from "./modules/rating/rating.module";
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuthModule } from "./modules/auth/auth.module";
     }),
     AuthModule,
     UserModule,
+    RatingModule
   ],
   controllers: [AppController],
   providers: [AppService],
