@@ -19,6 +19,10 @@ export class User{
     @Column({ type: "varchar", default: Role.PASSENGER })
     role!: Role;
 
+    // true after an admin approves the ID or licence photo
+    @Column({ type: "boolean", default: false })
+    is_verified!: boolean;
+
     @Column()
     created_at?: Date;
 
