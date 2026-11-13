@@ -1,16 +1,4 @@
-import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    ParseUUIDPipe,
-    Patch,
-    Post,
-    Query,
-    UseGuards,
-    ValidationPipe,
-} from "@nestjs/common";
+import {  Body,Controller, Delete,Get,Param, ParseUUIDPipe, Patch, Post, Query, UseGuards, ValidationPipe,} from "@nestjs/common";
 import { ApiBearerAuth } from "@nestjs/swagger";
 import { FindManyOptions } from "typeorm";
 import { JwtGuard } from "@/common/guard/jwt.guard";
@@ -22,16 +10,16 @@ import { AreaService } from "./area.service";
 import { CreateAreaDto, UpdateAreaDto } from "./dto/area.dto";
 import { Area } from "./entities/area.entity";
 
-// checks the body with the DTO rules, and rejects fields that are not in the DTO
+
 const bodyPipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true });
 
 @Controller("areas")
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard) // first login is checked, then the role
+@UseGuards(JwtGuard, RolesGuard) 
 export class AreaController {
     constructor(private readonly areaService: AreaService) {}
 
-    // any logged-in user can list areas: /areas?limit=10&offset=0&q=Kuril
+    
     @Get()
     async getAreas(@Query(new QueryParserPipe("MANY", ["name"])) options: FindManyOptions<Area>) {
         return await this.areaService.getAreas(options);
