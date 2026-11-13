@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 
 import { User } from '../../user/entities/user.entity';
+import { BookingStatus } from '../enums/booking-status.enum';
 
 @Entity({ name: 'bookings' })
 export class Booking {
@@ -30,9 +31,12 @@ export class Booking {
   seatsRequested!: number;
 
   // Booking status
- @Column()
- status!: string;
-
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: BookingStatus.PENDING,
+  })
+  status!: BookingStatus;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
