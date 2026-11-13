@@ -7,6 +7,7 @@ import global_config from "@/config/global_config";
 import { BullModule } from "@nestjs/bull";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { AreaModule } from "./modules/area/area.module";
 import { VerificationModule } from "./modules/verification/verification.module";
 
 @Module({
@@ -25,10 +26,10 @@ import { VerificationModule } from "./modules/verification/verification.module";
     }),
     AuthModule,
     UserModule,
+    AreaModule,
     VerificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
-
 })
 export class AppModule {}
