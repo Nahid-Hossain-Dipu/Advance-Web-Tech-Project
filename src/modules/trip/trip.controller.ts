@@ -6,6 +6,7 @@ import {
     ParseUUIDPipe,
     Patch,
     Post,
+    Query,
     UseGuards,
     ValidationPipe,
 } from "@nestjs/common";
@@ -17,9 +18,14 @@ import { CurrentUser } from "@/common/decorators/current-user.decorator";
 import { AuthUser } from "@/common/interfaces/auth-user.interface";
 import { Role } from "@/common/enums/role.enum";
 import { TripService } from "./trip.service";
-import { CreateTripDto, UpdateTripDto } from "./dto/trip.dto";
+import { CreateTripDto, SearchTripDto, UpdateTripDto } from "./dto/trip.dto";
 
 const bodyPipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true });
+const queryPipe = new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+});
 
 @Controller("trips")
 @ApiBearerAuth()
@@ -34,6 +40,11 @@ export class TripController {
         @Body(bodyPipe) dto: CreateTripDto,
     ) {
         return await this.tripService.createTrip(user.id, dto);
+    }
+
+    @Get()
+    async searchTrips(@Query(queryPipe) query: SearchTripDto) {
+        return await this.tripService.searchTrips(query);
     }
 
     @Get(":id")

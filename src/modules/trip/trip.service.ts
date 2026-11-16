@@ -12,7 +12,7 @@ import { User } from "@/modules/user/entities/user.entity";
 import { VehicleService } from "@/modules/vehicle/vehicle.service";
 import { AreaService } from "@/modules/area/area.service";
 import { Trip, TripStatus } from "./entities/trip.entity";
-import { CreateTripDto, UpdateTripDto } from "./dto/trip.dto";
+import { CreateTripDto, SearchTripDto, UpdateTripDto } from "./dto/trip.dto";
 
 const COST_PER_KM = 5;
 const MAX_COST_CHANGE = 0.2;
@@ -159,6 +159,70 @@ export class TripService {
             return await this.tripRepository.save(trip);
         } catch (error) {
             throw error;
+        }
+    }
+     
+        async searchTrips(query: SearchTripDto) {
+        try {
+            const limit = query.limit ?? 10;
+            const offset = query.offset ?? 0;
+
+            if ((query.time_from || query.time_to) && !query.date) {
+                throw new BadRequestException("date is required when time_from or time_to is used");
+            }
+            if (query.time_from && query.time_to && query.time_from >= query.time_to) {
+                throw new BadRequestException("time_from must be before time_to");
+            }
+
+            const qb = this.tripRepository
+                .createQueryBuilder("trip")
+                .leftJoinAndSelect("trip.pickup_area", "pickup_area")
+                .leftJoinAndSelect("trip.destination_area", "destination_area")
+                .leftJoin("trip.driver", "driver")
+                .addSelect(["driver.id", "driver.name"])
+                .leftJoin("trip.vehicle", "vehicle")
+                .addSelect(["vehicle.id", "vehicle.type", "vehicle.model", "vehicle.seat_capacity"])
+                .where("trip.status = :status", { status: TripStatus.SCHEDULED })
+                .andWhere("trip.departure_time > :now", { now: new Date() })
+                .andWhere("trip.seats_available > 0");
+
+            if (query.pickup_area_id) {
+                qb.andWhere("trip.pickup_area_id = :pickup", { pickup: query.pickup_area_id });
+            }
+            if (query.destination_area_id) {
+                qb.andWhere("trip.destination_area_id = :destination", {
+                    destination: query.destination_area_id,
+                });
+            }
+            if (query.date) {
+                this.checkRealDate(query.date);
+                const start = new Date(`${query.date}T${query.time_from ?? "00:00"}:00+06:00`);
+                const end = new Date(`${query.date}T${query.time_to ?? "23:59"}:59.999+06:00`);
+                qb.andWhere("trip.departure_time >= :start", { start });
+                qb.andWhere("trip.departure_time <= :end", { end });
+            }
+
+            const [trips, total] = await qb
+                .orderBy("trip.departure_time", "ASC")
+                .skip(offset)
+                .take(limit)
+                .getManyAndCount();
+
+            return { data: trips.map((trip) => this.toResponse(trip)), total, limit, offset };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    private checkRealDate(date: string) {
+        const [year, month, day] = date.split("-").map(Number);
+        const check = new Date(Date.UTC(year, month - 1, day));
+        if (
+            check.getUTCFullYear() !== year ||
+            check.getUTCMonth() !== month - 1 ||
+            check.getUTCDate() !== day
+        ) {
+            throw new BadRequestException("Invalid date");
         }
     }
 
