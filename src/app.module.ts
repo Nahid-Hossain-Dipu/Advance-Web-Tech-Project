@@ -8,6 +8,7 @@ import { BullModule } from "@nestjs/bull";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { RatingModule } from "./modules/rating/rating.module";
+import { ReportModule } from "./modules/report/report.module";
 
 
 @Module({
@@ -27,6 +28,7 @@ import { RatingModule } from "./modules/rating/rating.module";
     AuthModule,
     UserModule,
     RatingModule,
+    ReportModule
   
   ],
   controllers: [AppController],
