@@ -1,6 +1,7 @@
-import {Controller,Get,Post,Body,Param} from "@nestjs/common";
+import {Controller,Get,Post,Patch,Body,Param} from "@nestjs/common";
 import { RatingService } from "./rating.service";
 import { CreateRatingDto } from "./dto/create-rating.dto";
+import { UpdateRatingDto } from "./dto/update-rating.dto";
 import { UseGuards, Req } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 @Controller("ratings")
@@ -37,6 +38,22 @@ export class RatingController {
     async getRatingsByTrip(@Param("tripId") tripId: string) {
     return await this.ratingService.getRatingsByTrip(tripId);
   }
+
+  @Patch(":id")
+    @UseGuards(AuthGuard("jwt"))
+async updateRating(
+    @Param("id") ratingId: string,
+    @Req() req: { user: { id: string } },
+    @Body() dto: UpdateRatingDto,
+) {
+    const userId = req.user.id;
+
+    return await this.ratingService.updateRating(
+        ratingId,
+        userId,
+        dto,
+    );
+}
 
 
 }
