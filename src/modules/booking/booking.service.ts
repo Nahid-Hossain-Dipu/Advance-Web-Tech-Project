@@ -196,6 +196,82 @@ export class BookingService {
       if (bookings.length === 0) {
         throw new NotFoundException('Booking not found');
       }
+
+      const booking = bookings[0];
+
+      // Check booking ownership
+      if (booking.passenger_id !== passengerId) {
+        throw new ForbiddenException(
+          'You are not allowed to cancel this booking',
+        );
+      }
+
+      // Only pending or accepted bookings can be cancelled
+      if (
+        booking.status !== BookingStatus.PENDING &&
+        booking.status !== BookingStatus.ACCEPTED
+      ) {
+        throw new ConflictException(
+          'This booking cannot be cancelled',
+        );
+      }
+
+      // If booking was accepted, restore the seats
+      if (booking.status === BookingStatus.ACCEPTED) {
+
+        // Lock trip row
+        const trips = await manager.query(
+          `SELECT id, available_seats
+           FROM dummy_trips
+           WHERE id = $1
+           FOR UPDATE`,
+          [booking.trip_id],
+        );
+
+        if (trips.length === 0) {
+          throw new NotFoundException('Trip not found');
+        }
+
+        const trip = trips[0];
+
+        const updatedSeats =
+          trip.available_seats + booking.seats_requested;
+
+        await manager.query(
+          `UPDATE dummy_trips
+           SET available_seats = $1
+           WHERE id = $2`,
+          [updatedSeats, booking.trip_id],
+        );
+
+        // Update booking status
+        await manager.query(
+          `UPDATE bookings
+           SET status = $1
+           WHERE id = $2`,
+          [BookingStatus.CANCELLED, bookingId],
+        );
+
+        return {
+          message: 'Booking cancelled successfully',
+          status: BookingStatus.CANCELLED,
+          restoredSeats: booking.seats_requested,
+          availableSeats: updatedSeats,
+        };
+      }
+
+      // Pending booking: no seats need to be restored
+      await manager.query(
+        `UPDATE bookings
+         SET status = $1
+         WHERE id = $2`,
+        [BookingStatus.CANCELLED, bookingId],
+      );
+
+      return {
+        message: 'Booking cancelled successfully',
+        status: BookingStatus.CANCELLED,
+      };
     });
   }
 }

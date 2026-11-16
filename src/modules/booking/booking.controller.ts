@@ -80,4 +80,20 @@ export class BookingController {
       'reject',
     );
   }
+    // Passenger cancels booking
+  @Patch(':id/cancel')
+  @Roles(Role.PASSENGER)
+  @ApiOperation({
+    summary: 'Cancel a booking request',
+  })
+  cancelBooking(
+    @Param('id') bookingId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.bookingService.cancelBooking(
+      user.id,
+      bookingId,
+    );
+  }
+
 }
