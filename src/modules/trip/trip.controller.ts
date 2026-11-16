@@ -4,6 +4,7 @@ import {
     Get,
     Param,
     ParseUUIDPipe,
+    Patch,
     Post,
     UseGuards,
     ValidationPipe,
@@ -16,7 +17,7 @@ import { CurrentUser } from "@/common/decorators/current-user.decorator";
 import { AuthUser } from "@/common/interfaces/auth-user.interface";
 import { Role } from "@/common/enums/role.enum";
 import { TripService } from "./trip.service";
-import { CreateTripDto } from "./dto/trip.dto";
+import { CreateTripDto, UpdateTripDto } from "./dto/trip.dto";
 
 const bodyPipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true });
 
@@ -38,5 +39,24 @@ export class TripController {
     @Get(":id")
     async getTrip(@Param("id", ParseUUIDPipe) id: string) {
         return await this.tripService.getTrip(id);
+    }
+
+    @Patch(":id")
+    @Roles(Role.DRIVER)
+    async updateTrip(
+        @CurrentUser() user: AuthUser,
+        @Param("id", ParseUUIDPipe) id: string,
+        @Body(bodyPipe) dto: UpdateTripDto,
+    ) {
+        return await this.tripService.updateTrip(id, user.id, dto);
+    }
+
+    @Patch(":id/cancel")
+    @Roles(Role.DRIVER)
+    async cancelTrip(
+        @CurrentUser() user: AuthUser,
+        @Param("id", ParseUUIDPipe) id: string,
+    ) {
+        return await this.tripService.cancelTrip(id, user.id);
     }
 }

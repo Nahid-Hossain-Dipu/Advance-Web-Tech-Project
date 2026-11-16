@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+    BadRequestException,
+    ConflictException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Role } from "@/common/enums/role.enum";
@@ -6,7 +12,7 @@ import { User } from "@/modules/user/entities/user.entity";
 import { VehicleService } from "@/modules/vehicle/vehicle.service";
 import { AreaService } from "@/modules/area/area.service";
 import { Trip, TripStatus } from "./entities/trip.entity";
-import { CreateTripDto } from "./dto/trip.dto";
+import { CreateTripDto, UpdateTripDto } from "./dto/trip.dto";
 
 const COST_PER_KM = 5;
 const MAX_COST_CHANGE = 0.2;
@@ -48,14 +54,9 @@ export class TripService {
                 throw new BadRequestException("Seats cannot be more than the vehicle capacity");
             }
 
-            const suggested = this.suggestCost(dto.distance_km);
-            let cost_per_seat = suggested;
+            let cost_per_seat = this.suggestCost(dto.distance_km);
             if (dto.cost_per_seat !== undefined) {
-                const min = Math.max(1, Math.floor(suggested * (1 - MAX_COST_CHANGE)));
-                const max = Math.ceil(suggested * (1 + MAX_COST_CHANGE));
-                if (dto.cost_per_seat < min || dto.cost_per_seat > max) {
-                    throw new BadRequestException(`Cost per seat must be between ${min} and ${max}`);
-                }
+                this.checkCostLimit(dto.cost_per_seat, dto.distance_km);
                 cost_per_seat = dto.cost_per_seat;
             }
 
@@ -89,6 +90,104 @@ export class TripService {
             return this.toResponse(trip);
         } catch (error) {
             throw error;
+        }
+    }
+
+    async updateTrip(id: string, driverId: string, dto: UpdateTripDto) {
+        try {
+            const trip = await this.getOwnTrip(id, driverId);
+            this.checkCanChange(trip);
+
+            const pickup_area_id = dto.pickup_area_id ?? trip.pickup_area_id;
+            const destination_area_id = dto.destination_area_id ?? trip.destination_area_id;
+            if (pickup_area_id === destination_area_id) {
+                throw new BadRequestException("Pickup and destination must be different");
+            }
+            if (dto.pickup_area_id) {
+                const area = await this.areaService.getArea(dto.pickup_area_id);
+                if (!area.is_active) {
+                    throw new BadRequestException("Area is not active");
+                }
+            }
+            if (dto.destination_area_id) {
+                const area = await this.areaService.getArea(dto.destination_area_id);
+                if (!area.is_active) {
+                    throw new BadRequestException("Area is not active");
+                }
+            }
+
+            if (dto.departure_time) {
+                const departure_time = new Date(dto.departure_time);
+                if (departure_time.getTime() <= Date.now()) {
+                    throw new BadRequestException("Departure time must be in the future");
+                }
+                trip.departure_time = departure_time;
+            }
+
+            const distance_km = dto.distance_km ?? trip.distance_km;
+            let cost_per_seat = trip.cost_per_seat;
+            if (dto.cost_per_seat !== undefined) {
+                this.checkCostLimit(dto.cost_per_seat, distance_km);
+                cost_per_seat = dto.cost_per_seat;
+            } else if (dto.distance_km !== undefined) {
+                cost_per_seat = this.suggestCost(distance_km);
+            }
+
+            trip.pickup_area_id = pickup_area_id;
+            trip.destination_area_id = destination_area_id;
+            trip.distance_km = distance_km;
+            trip.cost_per_seat = cost_per_seat;
+            trip.updated_at = new Date();
+            return await this.tripRepository.save(trip);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async cancelTrip(id: string, driverId: string) {
+        try {
+            const trip = await this.getOwnTrip(id, driverId);
+            if (trip.status === TripStatus.CANCELLED) {
+                throw new ConflictException("Trip is already cancelled");
+            }
+            if (trip.status !== TripStatus.SCHEDULED) {
+                throw new ConflictException("Only a scheduled trip can be cancelled");
+            }
+
+            trip.status = TripStatus.CANCELLED;
+            trip.updated_at = new Date();
+            return await this.tripRepository.save(trip);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    private async getOwnTrip(id: string, driverId: string) {
+        const trip = await this.tripRepository.findOne({ where: { id } });
+        if (!trip) {
+            throw new NotFoundException("Trip not found");
+        }
+        if (trip.driver_id !== driverId) {
+            throw new ForbiddenException("You can change only your own trip");
+        }
+        return trip;
+    }
+
+    private checkCanChange(trip: Trip) {
+        if (trip.status !== TripStatus.SCHEDULED) {
+            throw new ConflictException("Only a scheduled trip can be changed");
+        }
+        if (trip.departure_time.getTime() <= Date.now()) {
+            throw new ConflictException("Trip has already departed");
+        }
+    }
+
+    private checkCostLimit(cost_per_seat: number, distance_km: number) {
+        const suggested = this.suggestCost(distance_km);
+        const min = Math.max(1, Math.floor(suggested * (1 - MAX_COST_CHANGE)));
+        const max = Math.ceil(suggested * (1 + MAX_COST_CHANGE));
+        if (cost_per_seat < min || cost_per_seat > max) {
+            throw new BadRequestException(`Cost per seat must be between ${min} and ${max}`);
         }
     }
 
