@@ -1,5 +1,4 @@
-import {
-  Injectable,NotFoundException,ForbiddenException,} from "@nestjs/common";
+import {Injectable,NotFoundException,ForbiddenException,} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CreateRatingDto } from "./dto/create-rating.dto";
@@ -86,5 +85,30 @@ async updateRating(
     }
 
     return await this.ratingRepository.save(rating);
+}
+
+async deleteRating(
+    ratingId: string,
+    userId: string,
+) {
+    const rating = await this.ratingRepository.findOne({
+        where: { id: ratingId },
+    });
+
+    if (!rating) {
+        throw new NotFoundException("Rating not found");
+    }
+
+    if (rating.rater_id !== userId) {
+        throw new ForbiddenException(
+            "You can only delete your own rating",
+        );
+    }
+
+    await this.ratingRepository.remove(rating);
+
+    return {
+        message: "Rating deleted successfully",
+    };
 }
 }

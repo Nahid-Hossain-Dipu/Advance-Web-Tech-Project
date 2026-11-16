@@ -1,4 +1,4 @@
-import {Controller,Get,Post,Patch,Body,Param} from "@nestjs/common";
+import {Controller,Get,Post,Patch,Delete,Body,Param} from "@nestjs/common";
 import { RatingService } from "./rating.service";
 import { CreateRatingDto } from "./dto/create-rating.dto";
 import { UpdateRatingDto } from "./dto/update-rating.dto";
@@ -52,6 +52,21 @@ async updateRating(
         ratingId,
         userId,
         dto,
+    );
+}
+
+
+@Delete(':id')
+@UseGuards(AuthGuard('jwt'))
+async deleteRating(
+    @Param('id') ratingId: string,
+    @Req() req: { user: { id: string } },
+) {
+    const userId = req.user.id;
+
+    return await this.ratingService.deleteRating(
+        ratingId,
+        userId,
     );
 }
 
