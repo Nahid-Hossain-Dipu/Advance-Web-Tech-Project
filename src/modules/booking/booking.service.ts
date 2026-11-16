@@ -180,4 +180,22 @@ export class BookingService {
       };
     });
   }
+    // Passenger cancels their own booking
+  async cancelBooking(passengerId: string, bookingId: string) {
+    return this.dataSource.transaction(async (manager) => {
+
+      // Find and lock booking
+      const bookings = await manager.query(
+        `SELECT id, passenger_id, trip_id, seats_requested, status
+         FROM bookings
+         WHERE id = $1
+         FOR UPDATE`,
+        [bookingId],
+      );
+
+      if (bookings.length === 0) {
+        throw new NotFoundException('Booking not found');
+      }
+    });
+  }
 }
