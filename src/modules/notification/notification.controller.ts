@@ -6,8 +6,12 @@ import {
     Param,
     Patch,
     Post,
+    Query,
     UseGuards,
+    DefaultValuePipe,
+    ParseIntPipe,
 } from "@nestjs/common";
+
 import { AuthGuard } from "@nestjs/passport";
 
 import { NotificationService } from "./notification.service.js";
@@ -26,13 +30,24 @@ export class NotificationController {
     }
 
     @Get()
-    getAllNotifications() {
-        return this.notificationService.getAllNotifications();
+    getAllNotifications(
+        @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+        @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    ) {
+        return this.notificationService.getAllNotifications(page, limit);
     }
 
     @Get("user/:userId")
-    getNotificationsByUser(@Param("userId") userId: string) {
-        return this.notificationService.getNotificationsByUser(userId);
+    getNotificationsByUser(
+        @Param("userId") userId: string,
+        @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+        @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    ) {
+        return this.notificationService.getNotificationsByUser(
+            userId,
+            page,
+            limit,
+        );
     }
 
     @Patch(":id/read")

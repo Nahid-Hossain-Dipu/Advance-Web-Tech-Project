@@ -26,23 +26,53 @@ export class NotificationService {
         return await this.notificationRepository.save(notification);
     }
 
-    async getAllNotifications() {
-        return await this.notificationRepository.find({
+    async getAllNotifications(page = 1, limit = 10) {
+        page = Math.max(1, page);
+        limit = Math.min(100, Math.max(1, limit));
+
+        const [data, total] = await this.notificationRepository.findAndCount({
             order: {
                 created_at: "DESC",
             },
+            skip: (page - 1) * limit,
+            take: limit,
         });
+
+        return {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
     }
 
-    async getNotificationsByUser(userId: string) {
-        return await this.notificationRepository.find({
+    async getNotificationsByUser(
+        userId: string,
+        page = 1,
+        limit = 10,
+    ) {
+        page = Math.max(1, page);
+        limit = Math.min(100, Math.max(1, limit));
+
+        const [data, total] = await this.notificationRepository.findAndCount({
             where: {
                 user_id: userId,
             },
             order: {
                 created_at: "DESC",
             },
+            skip: (page - 1) * limit,
+            take: limit,
         });
+
+        return {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
     }
 
     async markAsRead(notificationId: string) {
