@@ -5,6 +5,7 @@ import {
   UseGuards,
   Patch,
   Param,
+  Get
 } from '@nestjs/common';
 
 import {
@@ -95,5 +96,16 @@ export class BookingController {
       bookingId,
     );
   }
+
+  // Get all bookings for a specific trip
+@Get('trip/:tripId')
+@Roles(Role.DRIVER)
+@ApiOperation({ summary: 'Get all bookings for a specific trip' })
+getBookingsByTrip(
+  @Param('tripId') tripId: string,
+  @CurrentUser() user: AuthUser,
+) {
+  return this.bookingService.getBookingsByTrip(tripId, user.id);
+}
 
 }

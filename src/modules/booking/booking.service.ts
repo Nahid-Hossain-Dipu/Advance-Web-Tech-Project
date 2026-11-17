@@ -64,6 +64,46 @@ export class BookingService {
     };
   }
 
+  // Get all bookings for a specific trip
+async getBookingsByTrip(tripId: string, driverId: string) {
+  // Check whether the trip exists and belongs to this driver
+  const trips = await this.dataSource.query(
+    `SELECT id, driver_id
+     FROM dummy_trips
+     WHERE id = $1`,
+    [tripId],
+  );
+
+  if (trips.length === 0) {
+    throw new NotFoundException('Trip not found');
+  }
+
+  if (trips[0].driver_id !== driverId) {
+    throw new ForbiddenException(
+      'You are not allowed to view bookings for this trip',
+    );
+  }
+
+  // Find all bookings for this trip
+  const bookings = await this.bookingRepository.find({
+    where: {
+      tripId: tripId,
+    },
+    relations: {
+      passenger: true,
+    },
+    order: {
+      createdAt: 'DESC',
+    },
+  });
+
+  return {
+    message: 'Trip bookings retrieved successfully',
+    tripId,
+    total: bookings.length,
+    data: bookings,
+  };
+}
   // Driver accepts or rejects booking
   async updateBookingStatus(
     bookingId: string,
