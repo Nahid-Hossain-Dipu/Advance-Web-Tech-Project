@@ -1,6 +1,7 @@
 import {
     Injectable,
     NotFoundException,
+    ForbiddenException,
 } from "@nestjs/common";
 
 import { InjectRepository } from "@nestjs/typeorm";
@@ -26,14 +27,20 @@ export class NotificationService {
         return await this.notificationRepository.save(notification);
     }
 
-    async getAllNotifications(page = 1, limit = 10) {
+    async getAllNotifications(
+        userId: string,
+        isAdmin: boolean,
+        page = 1,
+        limit = 10,
+    ) {
         page = Math.max(1, page);
         limit = Math.min(100, Math.max(1, limit));
 
+        const where = isAdmin ? {} : { user_id: userId };
+
         const [data, total] = await this.notificationRepository.findAndCount({
-            order: {
-                created_at: "DESC",
-            },
+            where,
+            order: { created_at: "DESC" },
             skip: (page - 1) * limit,
             take: limit,
         });
@@ -48,20 +55,24 @@ export class NotificationService {
     }
 
     async getNotificationsByUser(
-        userId: string,
+        targetUserId: string,
+        currentUserId: string,
+        isAdmin: boolean,
         page = 1,
         limit = 10,
     ) {
+        if (!isAdmin && targetUserId !== currentUserId) {
+            throw new ForbiddenException(
+                "You can only view your own notifications",
+            );
+        }
+
         page = Math.max(1, page);
         limit = Math.min(100, Math.max(1, limit));
 
         const [data, total] = await this.notificationRepository.findAndCount({
-            where: {
-                user_id: userId,
-            },
-            order: {
-                created_at: "DESC",
-            },
+            where: { user_id: targetUserId },
+            order: { created_at: "DESC" },
             skip: (page - 1) * limit,
             take: limit,
         });
@@ -75,15 +86,23 @@ export class NotificationService {
         };
     }
 
-    async markAsRead(notificationId: string) {
+    async markAsRead(
+        notificationId: string,
+        userId: string,
+        isAdmin: boolean,
+    ) {
         const notification = await this.notificationRepository.findOne({
-            where: {
-                id: notificationId,
-            },
+            where: { id: notificationId },
         });
 
         if (!notification) {
             throw new NotFoundException("Notification not found");
+        }
+
+        if (!isAdmin && notification.user_id !== userId) {
+            throw new ForbiddenException(
+                "You can only read your own notifications",
+            );
         }
 
         notification.is_read = true;
@@ -91,15 +110,23 @@ export class NotificationService {
         return await this.notificationRepository.save(notification);
     }
 
-    async deleteNotification(notificationId: string) {
+    async deleteNotification(
+        notificationId: string,
+        userId: string,
+        isAdmin: boolean,
+    ) {
         const notification = await this.notificationRepository.findOne({
-            where: {
-                id: notificationId,
-            },
+            where: { id: notificationId },
         });
 
         if (!notification) {
             throw new NotFoundException("Notification not found");
+        }
+
+        if (!isAdmin && notification.user_id !== userId) {
+            throw new ForbiddenException(
+                "You can only delete your own notifications",
+            );
         }
 
         await this.notificationRepository.remove(notification);
