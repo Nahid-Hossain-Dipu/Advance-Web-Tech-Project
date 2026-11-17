@@ -8,8 +8,16 @@ import {
     Param,
     Req,
     UseGuards,
+    Query,
+    ParseIntPipe,
+    DefaultValuePipe,
+    ParseUUIDPipe,
 } from "@nestjs/common";
+
 import { AuthGuard } from "@nestjs/passport";
+import { RolesGuard } from "../../common/guard/roles.guard";
+import { Roles } from "../../common/decorators/roles.decorator";
+import { Role } from "../../common/enums/role.enum";
 import { ReportService } from "./report.service";
 import { CreateReportDto } from "./dto/create-report.dto";
 import { UpdateReportDto } from "./dto/update-report.dto";
@@ -25,25 +33,32 @@ export class ReportController {
     }
 
     @Get()
-    getAllReports() {
-        return this.reportService.getAllReports();
+    getAllReports(
+        @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+        @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    ) {
+        return this.reportService.getAllReports(page, limit);
     }
 
     @Get(":id")
-    getReportById(@Param("id") id: string) {
+    getReportById(@Param("id", ParseUUIDPipe) id: string) {
         return this.reportService.getReportById(id);
     }
 
     @Patch(":id")
+    @UseGuards(RolesGuard)
+    @Roles(Role.ADMIN)
     updateReport(
-        @Param("id") id: string,
+        @Param("id", ParseUUIDPipe) id: string,
         @Body() dto: UpdateReportDto,
     ) {
         return this.reportService.updateReport(id, dto);
     }
 
     @Delete(":id")
-    deleteReport(@Param("id") id: string) {
+    @UseGuards(RolesGuard)
+    @Roles(Role.ADMIN)
+    deleteReport(@Param("id", ParseUUIDPipe) id: string) {
         return this.reportService.deleteReport(id);
     }
 }

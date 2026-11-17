@@ -3,6 +3,7 @@ import {
     NotFoundException,
     ForbiddenException,
 } from "@nestjs/common";
+
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Report, ReportStatus } from "./entities/report.entity";
@@ -30,12 +31,25 @@ export class ReportService {
         return await this.reportRepository.save(report);
     }
 
-    async getAllReports() {
-        return await this.reportRepository.find({
+    async getAllReports(page: number = 1, limit: number = 10) {
+        page = Math.max(1, page);
+        limit = Math.max(1, Math.min(100, limit));
+
+        const [reports, total] = await this.reportRepository.findAndCount({
             order: {
                 created_at: "DESC",
             },
+            skip: (page - 1) * limit,
+            take: limit,
         });
+
+        return {
+            data: reports,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
     }
 
     async getReportById(reportId: string) {
