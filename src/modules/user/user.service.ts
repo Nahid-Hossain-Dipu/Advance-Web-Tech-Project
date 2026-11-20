@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { User } from "./entities/user.entity";
 import { Repository } from "typeorm";
@@ -94,6 +94,42 @@ async findOneByEmail(email: string): Promise<User | null> {
         return user;
     }catch (error){
         throw error;
+    }
+}
+
+
+// Is this user verified by an admin?
+async isVerified(id: string): Promise<boolean> {
+    const user = await this.userRepository.findOne({
+        where: {
+            id: id,
+        },
+    });
+    if (!user) {
+        throw new NotFoundException("User not found");
+    }
+    return user.is_verified;
+}
+
+// Admin approves or rejects: change the verified flag
+async setVerified(id: string, value: boolean) {
+    const user = await this.userRepository.findOne({
+        where: {
+            id: id,
+        },
+    });
+    if (!user) {
+        throw new NotFoundException("User not found");
+    }
+    user.is_verified = value;
+    await this.userRepository.save(user);
+}
+
+// Other modules call this before an action that needs a verified user
+async assertVerified(id: string) {
+    const verified = await this.isVerified(id);
+    if (!verified) {
+        throw new ForbiddenException("Your account is not verified yet");
     }
 }
 }

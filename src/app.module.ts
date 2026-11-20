@@ -5,9 +5,14 @@ import { AppController } from "@/src/app.controller";
 import { AppService } from "@/src/app.service";
 import global_config from "@/config/global_config";
 import { BullModule } from "@nestjs/bull";
+
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
-import { BookingModule } from './modules/booking/booking.module';
+import { BookingModule } from "./modules/booking/booking.module";
+import { AreaModule } from "./modules/area/area.module";
+import { VehicleModule } from "./modules/vehicle/vehicle.module";
+import { VerificationModule } from "./modules/verification/verification.module";
+import { TripModule } from "./modules/trip/trip.module";
 
 @Module({
   imports: [
@@ -26,6 +31,10 @@ import { BookingModule } from './modules/booking/booking.module';
     AuthModule,
     UserModule,
     BookingModule,
+    AreaModule,
+    VehicleModule,
+    VerificationModule,
+    TripModule,
   ],
   controllers: [AppController],
   providers: [AppService],
