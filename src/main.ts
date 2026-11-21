@@ -13,9 +13,15 @@ dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  
-  // check every request body with its DTO rules (wrong data gives 400)
-  app.useGlobalPipes(new ValidationPipe());
+
+  // For enabling global validation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   app.useStaticAssets(join(process.cwd(), "uploads"), {
     prefix: "/uploads/",
@@ -32,7 +38,7 @@ async function bootstrap() {
           // Swagger UI needs 'unsafe-inline' to function correctly
           scriptSrc: ["'self'", "'unsafe-inline'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", "data:", "validator.swagger.io"], // Allow Swagger images
+          imgSrc: ["'self'", "data:", "validator.swagger.io"],
           connectSrc: ["'self'"],
         },
       },
@@ -43,7 +49,11 @@ async function bootstrap() {
 
   // 1. Logger
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const now = new Date().toISOString().replace("T", " ").replace(/\..+/, "");
+    const now = new Date()
+      .toISOString()
+      .replace("T", " ")
+      .replace(/\.\d+Z$/, "");
+
     console.log(`[HTTP] [${now}] ${req.method} ${req.originalUrl}`);
     next();
   });
@@ -54,12 +64,14 @@ async function bootstrap() {
     .setVersion("1.0")
     .addBearerAuth()
     .build();
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("api", app, document);
 
   // 3. Cookie Parser
   const cookieSecret =
     process.env.COOKIE_SECRET || "fallback-secret-dont-use-in-prod";
+
   app.use(cookieParser(cookieSecret));
 
   // 4. CORS Configuration
@@ -76,4 +88,5 @@ async function bootstrap() {
 
   await app.listen(parseInt(process.env.PORT as string));
 }
+
 bootstrap();
