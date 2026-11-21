@@ -11,6 +11,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Booking } from './entities/booking.entity';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { BookingStatus } from './enums/booking-status.enum';
+import { TripStatus } from '../trip/entities/trip.entity';
 
 @Injectable()
 export class BookingService {
@@ -44,6 +45,38 @@ export class BookingService {
       );
     }
 
+    // Check actual trip
+    const trips = await this.dataSource.query(
+      `SELECT id, status, departure_time, seats_total
+       FROM trips
+       WHERE id = $1`,
+      [dto.tripId],
+    );
+
+    if (trips.length === 0) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    const trip = trips[0];
+
+    if (trip.status !== TripStatus.SCHEDULED) {
+      throw new ConflictException(
+        'Booking is only available for scheduled trips',
+      );
+    }
+
+    if (new Date(trip.departure_time).getTime() <= Date.now()) {
+      throw new ConflictException(
+        'Cannot book a trip that has already departed',
+      );
+    }
+
+    if (dto.seatsRequested > trip.seats_total) {
+      throw new ConflictException(
+        'Requested seats exceed total trip capacity',
+      );
+    }
+
     const booking = this.bookingRepository.create({
       passenger: { id: passengerId } as any,
       tripId: dto.tripId,
@@ -65,45 +98,44 @@ export class BookingService {
   }
 
   // Get all bookings for a specific trip
-async getBookingsByTrip(tripId: string, driverId: string) {
-  // Check whether the trip exists and belongs to this driver
-  const trips = await this.dataSource.query(
-    `SELECT id, driver_id
-     FROM dummy_trips
-     WHERE id = $1`,
-    [tripId],
-  );
-
-  if (trips.length === 0) {
-    throw new NotFoundException('Trip not found');
-  }
-
-  if (trips[0].driver_id !== driverId) {
-    throw new ForbiddenException(
-      'You are not allowed to view bookings for this trip',
+  async getBookingsByTrip(tripId: string, driverId: string) {
+    const trips = await this.dataSource.query(
+      `SELECT id, driver_id
+       FROM trips
+       WHERE id = $1`,
+      [tripId],
     );
+
+    if (trips.length === 0) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    if (trips[0].driver_id !== driverId) {
+      throw new ForbiddenException(
+        'You are not allowed to view bookings for this trip',
+      );
+    }
+
+    const bookings = await this.bookingRepository.find({
+      where: {
+        tripId: tripId,
+      },
+      relations: {
+        passenger: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    return {
+      message: 'Trip bookings retrieved successfully',
+      tripId,
+      total: bookings.length,
+      data: bookings,
+    };
   }
 
-  // Find all bookings for this trip
-  const bookings = await this.bookingRepository.find({
-    where: {
-      tripId: tripId,
-    },
-    relations: {
-      passenger: true,
-    },
-    order: {
-      createdAt: 'DESC',
-    },
-  });
-
-  return {
-    message: 'Trip bookings retrieved successfully',
-    tripId,
-    total: bookings.length,
-    data: bookings,
-  };
-}
   // Driver accepts or rejects booking
   async updateBookingStatus(
     bookingId: string,
@@ -133,10 +165,11 @@ async getBookingsByTrip(tripId: string, driverId: string) {
         );
       }
 
-      // Find and lock trip
+      // Find and lock actual trip
       const trips = await manager.query(
-        `SELECT id, driver_id, available_seats
-         FROM dummy_trips
+        `SELECT id, driver_id, seats_available,
+                seats_total, status, departure_time
+         FROM trips
          WHERE id = $1
          FOR UPDATE`,
         [booking.trip_id],
@@ -170,8 +203,22 @@ async getBookingsByTrip(tripId: string, driverId: string) {
         };
       }
 
+      // Check trip status
+      if (trip.status !== TripStatus.SCHEDULED) {
+        throw new ConflictException(
+          'Only scheduled trips can accept bookings',
+        );
+      }
+
+      // Check departure time
+      if (new Date(trip.departure_time).getTime() <= Date.now()) {
+        throw new ConflictException(
+          'Cannot accept booking for a trip that has already departed',
+        );
+      }
+
       // Check available seats
-      if (trip.available_seats < booking.seats_requested) {
+      if (trip.seats_available < booking.seats_requested) {
         throw new ConflictException(
           'Not enough available seats',
         );
@@ -179,11 +226,11 @@ async getBookingsByTrip(tripId: string, driverId: string) {
 
       // Decrease available seats
       const remainingSeats =
-        trip.available_seats - booking.seats_requested;
+        trip.seats_available - booking.seats_requested;
 
       await manager.query(
-        `UPDATE dummy_trips
-         SET available_seats = $1
+        `UPDATE trips
+         SET seats_available = $1
          WHERE id = $2`,
         [remainingSeats, booking.trip_id],
       );
@@ -220,7 +267,8 @@ async getBookingsByTrip(tripId: string, driverId: string) {
       };
     });
   }
-    // Passenger cancels their own booking
+
+  // Passenger cancels their own booking
   async cancelBooking(passengerId: string, bookingId: string) {
     return this.dataSource.transaction(async (manager) => {
 
@@ -259,10 +307,10 @@ async getBookingsByTrip(tripId: string, driverId: string) {
       // If booking was accepted, restore the seats
       if (booking.status === BookingStatus.ACCEPTED) {
 
-        // Lock trip row
+        // Lock actual trip row
         const trips = await manager.query(
-          `SELECT id, available_seats
-           FROM dummy_trips
+          `SELECT id, seats_available, seats_total
+           FROM trips
            WHERE id = $1
            FOR UPDATE`,
           [booking.trip_id],
@@ -275,11 +323,12 @@ async getBookingsByTrip(tripId: string, driverId: string) {
         const trip = trips[0];
 
         const updatedSeats =
-          trip.available_seats + booking.seats_requested;
+          trip.seats_available + booking.seats_requested;
 
+        // Restore seats
         await manager.query(
-          `UPDATE dummy_trips
-           SET available_seats = $1
+          `UPDATE trips
+           SET seats_available = $1
            WHERE id = $2`,
           [updatedSeats, booking.trip_id],
         );
